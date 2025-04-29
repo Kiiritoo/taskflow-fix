@@ -12,9 +12,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Bell, Search, Settings, HelpCircle, LogOut, User } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useUser } from "@/contexts/UserContext"
 
 interface DashboardHeaderProps {
   children?: React.ReactNode
@@ -22,28 +22,11 @@ interface DashboardHeaderProps {
 
 export default function DashboardHeader({ children }: DashboardHeaderProps) {
   const router = useRouter()
-  const [user, setUser] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const userData = localStorage.getItem("user")
-      return userData ? JSON.parse(userData) : null
-    }
-    return null
-  })
-
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const userData = localStorage.getItem("user")
-      if (userData) {
-        setUser(JSON.parse(userData))
-      }
-    }
-
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
-  }, [])
+  const { user, setUser } = useUser()
 
   const handleLogout = () => {
-    localStorage.removeItem("user")
+    document.cookie = 'user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    setUser(null)
     toast.success("Logged out successfully")
     router.push("/login")
   }

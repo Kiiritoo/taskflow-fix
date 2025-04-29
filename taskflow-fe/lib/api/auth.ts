@@ -17,6 +17,28 @@ export const registerSchema = z.object({
 export type LoginInput = z.infer<typeof loginSchema>
 export type RegisterInput = z.infer<typeof registerSchema>
 
+// API response types
+interface LoginSuccessResponse {
+  success: true;
+  data: {
+    user: {
+      id: number;
+      username: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+    };
+  };
+}
+
+interface LoginErrorResponse {
+  success: false;
+  error: string;
+  status: number;
+}
+
+type LoginResponse = LoginSuccessResponse | LoginErrorResponse;
+
 // API endpoints
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5254/api"
 
@@ -28,7 +50,7 @@ async function hashPassword(password: string): Promise<string> {
   return btoa(String.fromCharCode(...new Uint8Array(hash)));
 }
 
-export async function login(data: LoginInput) {
+export async function login(data: LoginInput): Promise<LoginResponse> {
   console.log("Making API call to:", `${API_URL}/auth/login`)
   
   // Hash the password before sending
@@ -59,23 +81,45 @@ export async function login(data: LoginInput) {
       try {
         const errorJson = JSON.parse(responseText)
         errorMessage = errorJson.message || errorMessage
+        
+        // Return error response instead of throwing
+        return {
+          success: false,
+          error: errorMessage,
+          status: response.status
+        }
       } catch (e) {
         console.error("Error parsing error response:", e)
+        return {
+          success: false,
+          error: "An unexpected error occurred",
+          status: response.status
+        }
       }
-      throw new Error(errorMessage)
     }
 
     try {
       const result = JSON.parse(responseText)
       console.log("Success response:", result)
-      return result
+      return {
+        success: true,
+        data: result
+      }
     } catch (e) {
       console.error("Error parsing success response:", e)
-      throw new Error("Invalid response from server")
+      return {
+        success: false,
+        error: "Invalid response from server",
+        status: 500
+      }
     }
   } catch (error) {
     console.error("Network error:", error)
-    throw error
+    return {
+      success: false,
+      error: "Network error. Please check your connection.",
+      status: 0
+    }
   }
 }
 

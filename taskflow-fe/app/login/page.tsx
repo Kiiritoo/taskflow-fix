@@ -21,33 +21,73 @@ export default function LoginPage() {
     register: formRegister,
     handleSubmit,
     formState: { errors },
+    setError,
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
   })
 
   async function onSubmit(data: LoginInput) {
-    console.log("Form submitted with data:", data)
     setIsLoading(true)
     try {
-      console.log("Sending login request...")
       const response = await login(data)
-      console.log("Login response:", response)
       
-      // Store user data in localStorage
-      localStorage.setItem("user", JSON.stringify(response.user))
-      
-      toast.success("Login successful!")
-      // Redirect to dashboard after successful login
-      setTimeout(() => {
-        router.push("/dashboard")
-      }, 1000)
+      if (response.success) {
+        // Store user data in cookies
+        document.cookie = `user=${JSON.stringify(response.data.user)}; path=/; max-age=86400` // 24 hours
+        
+        toast.success("Login successful!")
+        // Redirect to dashboard after successful login
+        setTimeout(() => {
+          router.push("/dashboard")
+        }, 1000)
+      } else {
+        // Handle specific error cases based on backend responses
+        if (response.status === 401) {
+          setError("password", {
+            type: "manual",
+            message: "Invalid email or password"
+          })
+        } else if (response.status === 404) {
+          setError("email", {
+            type: "manual",
+            message: "No account found with this email"
+          })
+        } else if (response.status === 400) {
+          if (!data.email) {
+            setError("email", {
+              type: "manual",
+              message: "Email is required"
+            })
+          }
+          if (!data.password) {
+            setError("password", {
+              type: "manual",
+              message: "Password is required"
+            })
+          }
+        } else {
+          toast.error(response.error, {
+            duration: 5000,
+            position: "top-center",
+            style: {
+              background: "#fff",
+              color: "#dc2626",
+              border: "1px solid #dc2626",
+            },
+          })
+        }
+      }
     } catch (error) {
       console.error("Login error:", error)
-      if (error instanceof Error) {
-        toast.error(error.message)
-      } else {
-        toast.error("Login failed. Please try again.")
-      }
+      toast.error("An unexpected error occurred. Please try again later.", {
+        duration: 5000,
+        position: "top-center",
+        style: {
+          background: "#fff",
+          color: "#dc2626",
+          border: "1px solid #dc2626",
+        },
+      })
     } finally {
       setIsLoading(false)
     }
@@ -112,10 +152,12 @@ export default function LoginPage() {
                     id="email"
                     type="email"
                     placeholder="name@example.com"
-                    className="bg-white"
+                    className={`bg-white ${errors.email ? 'border-red-500' : ''}`}
                     {...formRegister("email")}
                   />
-                  {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
+                  {errors.email && (
+                    <p className="text-sm text-red-500">{errors.email.message}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -123,10 +165,12 @@ export default function LoginPage() {
                   <Input
                     id="password"
                     type="password"
-                    className="bg-white"
+                    className={`bg-white ${errors.password ? 'border-red-500' : ''}`}
                     {...formRegister("password")}
                   />
-                  {errors.password && <p className="text-sm text-red-500">{errors.password.message}</p>}
+                  {errors.password && (
+                    <p className="text-sm text-red-500">{errors.password.message}</p>
+                  )}
                 </div>
 
                 <Button
